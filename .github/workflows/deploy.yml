@@ -1,8 +1,8 @@
-name: Deploy to Server
+﻿name: Deploy to Server
 
 on:
   push:
-    branches: [ master  ]
+    branches: [ master ]
 
 jobs:
   deploy:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Server
+      - name: Deploy and Restart Backend
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -20,7 +20,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           script: |
-            echo "开始部署..."
-            cd /var/www/your-project
-            git pull origin main
-            echo "部署完成！"
+            echo "=== 拉取最新代码 ==="
+            cd /var/www/大A监控
+            git pull origin master
+            echo "=== 安装依赖 ==="
+            pip3 install requests -q
+            echo "=== 停止旧的后端服务 ==="
+            pkill -f "server.py" || true
+            echo "=== 启动后端服务 (端口8080) ==="
+            nohup python3 backend/server.py > /tmp/daa-server.log 2>&1 &
+            echo "=== 部署完成 ==="
+            echo "后端日志: tail -f /tmp/daa-server.log"

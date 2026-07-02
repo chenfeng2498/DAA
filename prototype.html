@@ -1,0 +1,392 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大A监控 V1 布局原型</title>
+<style>
+  :root {
+    --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+    --text: #c9d1d9; --text-dim: #8b949e;
+    --red: #f85149; --green: #3fb950; --blue: #58a6ff;
+    --orange: #d2991d; --purple: #a371f7;
+    --radius: 8px; --gap: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 13px; padding: 12px; height: 100vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0 8px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 16px; font-weight: 600; }
+  .header .update { color: var(--text-dim); font-size: 11px; }
+
+  /* index row */
+  .index-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap);
+    margin-bottom: var(--gap); flex-shrink: 0;
+  }
+  .index-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+  }
+  .index-card .ic-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .index-card .ic-name { font-size: 12px; color: var(--text-dim); }
+  .index-card .ic-price { font-size: 20px; font-weight: 700; }
+  .index-card .ic-change { font-size: 13px; }
+  .index-card .ic-ma {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--text-dim);
+  }
+  .index-card .ic-ma .ma-pct { font-weight: 700; font-size: 14px; }
+  .up { color: var(--red); } .down { color: var(--green); }
+
+  .pill { display:inline-block; padding:2px 10px; border-radius:10px; font-size:13px; font-weight:700; }
+  .pill.low { background: rgba(63,185,80,0.15); color: var(--green); }
+  .pill.fair { background: rgba(210,153,29,0.15); color: var(--orange); }
+  .pill.high { background: rgba(248,81,73,0.15); color: var(--red); }
+
+  /* row2 */
+  .row2 {
+    display: grid; grid-template-columns: 3fr 1fr 1fr; gap: var(--gap);
+    margin-bottom: var(--gap); flex-shrink: 0;
+  }
+  .ma2500-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px;
+    display: flex; flex-direction: column;
+  }
+  .ma2500-card .label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.5px; margin-bottom: 4px; }
+  .ma2500-card .ma-row {
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .ma2500-card .ma-val { font-size: 18px; font-weight: 700; }
+  .ma2500-card .ma-deviation { font-size: 14px; font-weight: 700; }
+  .ma2500-card canvas { flex: 1; width: 100%; min-height: 0; margin: 4px 0; border-radius: 4px; }
+  .ma2500-card .bar-bg {
+    height: 6px; background: #21262d; border-radius: 3px; margin: 4px 0; position: relative; overflow: hidden;
+  }
+  .ma2500-card .bar-fill { height: 100%; border-radius: 3px; background: var(--orange); }
+  .ma2500-card .zone-row {
+    display: flex; justify-content: space-between; font-size: 9px; color: var(--text-dim);
+  }
+  .zone-tag {
+    display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 14px; font-weight: 700;
+    align-self: flex-start;
+  }
+
+  .sent-card, .vol-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+  }
+  .sent-card .label, .vol-card .label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .sent-card .ratio { font-size: 28px; font-weight: 700; }
+  .sent-card .detail { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+  .mood { display:inline-block; margin-top:6px; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:700; }
+  .mood.positive { background: rgba(248,81,73,0.12); color: var(--red); }
+
+  .vol-card .vol-val { font-size: 28px; font-weight: 700; }
+  .vol-card .vol-change { font-size: 13px; margin-top: 2px; }
+  .vol-tag { display:inline-block; margin-top:6px; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:700; }
+  .vol-tag.normal { background: rgba(210,153,29,0.12); color: var(--orange); }
+
+  /* stock grid */
+  .stock-section {
+    flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: var(--gap);
+  }
+  .stock-section .section-title {
+    font-size: 11px; color: var(--text-dim); margin-bottom: 6px; flex-shrink: 0;
+  }
+  .stock-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px; overflow-y: auto; flex: 1; align-content: start;
+  }
+  .stock-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+  }
+  .stock-card .sc-top {
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;
+  }
+  .stock-card .sc-name { font-size: 14px; font-weight: 700; }
+  .stock-card .sc-code { font-size: 10px; color: var(--text-dim); }
+  .stock-card .sc-price { font-size: 18px; font-weight: 700; }
+
+  /* 大盘映射 */
+  .stock-card .sc-mapping {
+    background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.15);
+    border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stock-card .sc-mapping .map-label { font-size: 10px; color: var(--blue); white-space: nowrap; }
+  .stock-card .sc-mapping .map-big { font-size: 28px; font-weight: 800; color: var(--blue); letter-spacing: -1px; }
+  .stock-card .sc-mapping .map-arrow { font-size: 16px; font-weight: 700; }
+  .stock-card .sc-mapping .map-current { text-align: right; min-width: 0; }
+  .stock-card .sc-mapping .map-cur-label { font-size: 10px; color: var(--text-dim); }
+  .stock-card .sc-mapping .map-cur-val { font-size: 13px; font-weight: 700; }
+  .sc-mapping .map-divider { color: var(--text-dim); font-size: 18px; margin: 0 2px; }
+  .sc-mapping .map-conclusion { margin-left: auto; font-size: 14px; font-weight: 700; text-align: right; line-height: 1.3; }
+  .sc-mapping .map-conclusion .mc-pct { font-size: 16px; }
+
+  /* 基本面 */
+  .stock-card .sc-fund {
+    display: flex; gap: 10px; padding-top: 2px;
+  }
+  .stock-card .sc-fund .kv { flex: 1; text-align: center; }
+  .stock-card .sc-fund .kv .k { font-size: 10px; color: var(--text-dim); }
+  .stock-card .sc-fund .kv .v { font-size: 15px; font-weight: 700; }
+
+  .footer {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 14px;
+    font-size: 12px; color: var(--text-dim); flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 大A监控</h1>
+  <span class="update">最后更新 14:35:22 · 10s 自动刷新</span>
+</div>
+
+<div class="index-row">
+  <div class="index-card">
+    <div class="ic-top"><span class="ic-name">上证指数</span><span class="ic-price up">3250.12</span></div>
+    <div class="ic-change up">+0.85% +27.41</div>
+    <div class="ic-ma">
+      <span>vs 十年线 <span class="ma-pct up">+4.8%</span></span>
+      <span class="pill fair">合理 · 65%</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="ic-top"><span class="ic-name">深证成指</span><span class="ic-price down">10850.3</span></div>
+    <div class="ic-change down">-0.32% -34.80</div>
+    <div class="ic-ma">
+      <span>vs 十年线 <span class="ma-pct down">-8.2%</span></span>
+      <span class="pill low">低估 · 22%</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="ic-top"><span class="ic-name">创业板指</span><span class="ic-price up">2150.45</span></div>
+    <div class="ic-change up">+1.20% +25.53</div>
+    <div class="ic-ma">
+      <span>vs 十年线 <span class="ma-pct down">-12.5%</span></span>
+      <span class="pill low">低估 · 18%</span>
+    </div>
+  </div>
+  <div class="index-card">
+    <div class="ic-top"><span class="ic-name">科创50</span><span class="ic-price up">980.23</span></div>
+    <div class="ic-change up">+0.15% +1.47</div>
+    <div class="ic-ma">
+      <span>vs 十年线 <span class="ma-pct down">-22.3%</span></span>
+      <span class="pill low">低估 · 8%</span>
+    </div>
+  </div>
+</div>
+
+<div class="row2">
+  <div class="ma2500-card">
+    <div class="label">📍 上证指数 · MA2500 十年线</div>
+    <div class="ma-row">
+      <span class="ma-val">3250.12</span>
+      <span class="ma-deviation up">+4.8%</span>
+      <span style="font-size:11px;color:var(--text-dim);">历史分位 65%</span>
+      <span class="zone-tag pill fair">合理</span>
+    </div>
+    <canvas id="maChart"></canvas>
+    <div class="bar-bg"><div class="bar-fill" style="width:65%"></div></div>
+    <div class="zone-row">
+      <span>极度低估</span><span>低估</span><span>合理</span><span>高估</span><span>极度高估</span>
+    </div>
+  </div>
+
+  <div class="sent-card">
+    <div class="label">😊 市场情绪</div>
+    <div class="ratio up">1.76</div>
+    <div class="detail">涨 2850 / 跌 1620</div>
+    <div class="detail">涨停 78 · 跌停 12</div>
+    <span class="mood positive">正常偏多</span>
+  </div>
+
+  <div class="vol-card">
+    <div class="label">📊 成交量</div>
+    <div class="vol-val">1.28<span style="font-size:14px;font-weight:400"> 万亿</span></div>
+    <div class="vol-change up">较前日 +12.3%</div>
+    <span class="vol-tag normal">量能正常</span>
+  </div>
+</div>
+
+<div class="stock-section">
+  <div class="section-title">📈 自选股（4只）</div>
+  <div class="stock-grid">
+    <!-- 隆基绿能 -->
+    <div class="stock-card">
+      <div class="sc-top">
+        <div><div class="sc-name">隆基绿能</div><div class="sc-code">601012</div></div>
+        <div class="sc-price down">22.45</div>
+      </div>
+      <div class="sc-mapping">
+        <span class="map-label">相似估值<br>对应上证</span>
+        <span class="map-big">2750</span>
+        <span class="map-divider">→</span>
+        <span class="map-current">
+          <div class="map-cur-label">当前上证</div>
+          <div class="map-cur-val up">3250 ↑</div>
+        </span>
+        <span class="map-conclusion" style="color:var(--green);"><span class="mc-pct">5%</span><br>极度低估</span>
+      </div>
+      <div class="sc-fund">
+        <div class="kv"><div class="k">PE</div><div class="v">12.3</div></div>
+        <div class="kv"><div class="k">PB</div><div class="v">1.85</div></div>
+        <div class="kv"><div class="k">市值</div><div class="v">1680<span style="font-size:10px">亿</span></div></div>
+      </div>
+    </div>
+    <!-- 凯撒旅业 -->
+    <div class="stock-card">
+      <div class="sc-top">
+        <div><div class="sc-name">凯撒旅业</div><div class="sc-code">000796</div></div>
+        <div class="sc-price up">4.82</div>
+      </div>
+      <div class="sc-mapping">
+        <span class="map-label">相似估值<br>对应上证</span>
+        <span class="map-big">2980</span>
+        <span class="map-divider">→</span>
+        <span class="map-current">
+          <div class="map-cur-label">当前上证</div>
+          <div class="map-cur-val up">3250 ↑</div>
+        </span>
+        <span class="map-conclusion" style="color:var(--orange);"><span class="mc-pct">55%</span><br>合理</span>
+      </div>
+      <div class="sc-fund">
+        <div class="kv"><div class="k">PE</div><div class="v">—</div></div>
+        <div class="kv"><div class="k">PB</div><div class="v">3.20</div></div>
+        <div class="kv"><div class="k">市值</div><div class="v">38<span style="font-size:10px">亿</span></div></div>
+      </div>
+    </div>
+    <!-- 比亚迪 -->
+    <div class="stock-card">
+      <div class="sc-top">
+        <div><div class="sc-name">比亚迪</div><div class="sc-code">002594</div></div>
+        <div class="sc-price down">268.30</div>
+      </div>
+      <div class="sc-mapping">
+        <span class="map-label">相似估值<br>对应上证</span>
+        <span class="map-big">3500</span>
+        <span class="map-divider">→</span>
+        <span class="map-current">
+          <div class="map-cur-label">当前上证</div>
+          <div class="map-cur-val down">3250 ↓</div>
+        </span>
+        <span class="map-conclusion" style="color:var(--red);"><span class="mc-pct">82%</span><br>高估</span>
+      </div>
+      <div class="sc-fund">
+        <div class="kv"><div class="k">PE</div><div class="v">32.1</div></div>
+        <div class="kv"><div class="k">PB</div><div class="v">5.80</div></div>
+        <div class="kv"><div class="k">市值</div><div class="v">8120<span style="font-size:10px">亿</span></div></div>
+      </div>
+    </div>
+    <!-- 风气电力 -->
+    <div class="stock-card">
+      <div class="sc-top">
+        <div><div class="sc-name">风气电力</div><div class="sc-code">601700</div></div>
+        <div class="sc-price up">5.68</div>
+      </div>
+      <div class="sc-mapping">
+        <span class="map-label">相似估值<br>对应上证</span>
+        <span class="map-big">2600</span>
+        <span class="map-divider">→</span>
+        <span class="map-current">
+          <div class="map-cur-label">当前上证</div>
+          <div class="map-cur-val up">3250 ↑</div>
+        </span>
+        <span class="map-conclusion" style="color:var(--green);"><span class="mc-pct">12%</span><br>低估</span>
+      </div>
+      <div class="sc-fund">
+        <div class="kv"><div class="k">PE</div><div class="v">18.5</div></div>
+        <div class="kv"><div class="k">PB</div><div class="v">1.42</div></div>
+        <div class="kv"><div class="k">市值</div><div class="v">65<span style="font-size:10px">亿</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  💬 上证 3250，高于十年线 4.8%，市场合理，成交正常（1.28万亿），情绪偏多。自选 4 只中 3 只低估。
+</div>
+
+<script>
+(function() {
+  var canvas = document.getElementById("maChart");
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.parentElement.getBoundingClientRect();
+  var W = rect.width - 28; var H = 100;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  var ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
+
+  var points = [];
+  var base = 3150, amp = 180;
+  for (var i = 0; i < 100; i++) {
+    var t = i / 99;
+    var wave = Math.sin(t * Math.PI * 4) * amp * (1 - t * 0.3);
+    var drift = (t - 0.5) * 200;
+    var noise = (Math.random() - 0.5) * 40;
+    points.push(base + wave + drift + noise);
+  }
+  points.push(3250);
+
+  var min = Math.min.apply(null, points) - 50;
+  var max = Math.max.apply(null, points) + 50;
+  var range = max - min;
+
+  function x(i) { return (i / (points.length - 1)) * W; }
+  function y(v) { return H - ((v - min) / range) * H; }
+
+  ctx.strokeStyle = "#21262d"; ctx.lineWidth = 0.5;
+  for (var g = 0; g <= 4; g++) {
+    var gy = (H / 4) * g;
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#c9d1d9"; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (var i = 0; i < points.length; i++) {
+    if (i === 0) ctx.moveTo(x(i), y(points[i])); else ctx.lineTo(x(i), y(points[i]));
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = "#d2991d"; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  var ws = 30;
+  for (var i = ws; i < points.length; i++) {
+    var sum = 0;
+    for (var j = i - ws; j <= i; j++) sum += points[j];
+    var avg = sum / (ws + 1);
+    if (i === ws) ctx.moveTo(x(i), y(avg)); else ctx.lineTo(x(i), y(avg));
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+
+  var lx = x(points.length - 1), ly = y(points[points.length - 1]);
+  ctx.fillStyle = "#f85149"; ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#f85149"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.stroke();
+
+  ctx.fillStyle = "#8b949e"; ctx.font = "9px sans-serif"; ctx.textAlign = "left";
+  for (var g = 0; g <= 4; g++) {
+    ctx.fillText(Math.round(max - (range / 4) * g), 2, (H / 4) * g + 10);
+  }
+  ctx.fillStyle = "#c9d1d9"; ctx.fillText("─ 上证", W - 70, 12);
+  ctx.fillStyle = "#d2991d"; ctx.fillText("- - MA2500", W - 70, 24);
+})();
+</script>
+
+</body>
+</html>

@@ -1,8 +1,8 @@
-﻿name: Deploy to Server
+﻿name: Deploy to Server (RSYNC Mode)
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   deploy:
@@ -12,7 +12,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy and Restart Backend
+      - name: Archive code (排除 .git 目录)
+        run: |
+          tar -czf daa-monitor.tar.gz . --exclude='.git' --exclude='daa-monitor.tar.gz' --exclude='.github'
+
+      - name: Copy archive to server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "daa-monitor.tar.gz"
+          target: "/tmp/"
+
+      - name: Deploy and Restart via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -20,25 +33,43 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           script: |
-            echo "=== 拉取最新代码 ==="
-            cd /var/www/大A监控
-            mkdir -p /tmp/daa-monitor-data
-            if [ -f data/market.db ]; then
-              cp data/market.db /tmp/daa-monitor-data/market.db
+            echo "=== 1. 备份旧版本和数据库 ==="
+            cd /var/www
+            TIMESTAMP=$(date +%s)
+            if [ -d "大A监控" ]; then
+              mv 大A监控 "大A监控_backup_${TIMESTAMP}"
+              # 单独备份数据库以防万一
+              if [ -f "大A监控_backup_${TIMESTAMP}/data/market.db" ]; then
+                cp "大A监控_backup_${TIMESTAMP}/data/market.db" /tmp/market.db.bak
+              fi
             fi
-            git update-index --skip-worktree data/market.db || true
-            git pull --autostash origin master
-            mkdir -p data
-            if [ -f /tmp/daa-monitor-data/market.db ]; then
-              cp /tmp/daa-monitor-data/market.db data/market.db
+
+            echo "=== 2. 部署最新代码 ==="
+            mkdir -p 大A监控
+            tar -xzf /tmp/daa-monitor.tar.gz -C /var/www/大A监控
+
+            echo "=== 3. 恢复数据库 ==="
+            mkdir -p /var/www/大A监控/data
+            if [ -f /tmp/market.db.bak ]; then
+              cp /tmp/market.db.bak /var/www/大A监控/data/market.db
+              echo "✅ 数据库恢复成功"
             fi
-            git update-index --skip-worktree data/market.db || true
-            echo "=== 安装依赖 ==="
+
+            echo "=== 4. 安装依赖 ==="
             pip3 install requests -q
-            echo "=== 重启 systemd 服务 ==="
+
+            echo "=== 5. 重启 systemd 服务 ==="
             sudo systemctl restart daa-monitor
-            echo "=== 健康检查 ==="
-            curl -fsS http://localhost:8080/api/dashboard > /dev/null
-            sudo systemctl status daa-monitor --no-pager
-            echo "=== 部署完成 ==="
-            echo "服务地址: http://${{ secrets.SERVER_HOST }}:8080"
+
+            echo "=== 6. 健康检查 ==="
+            sleep 3
+            if curl -fsS http://localhost:8080/api/dashboard > /dev/null; then
+              echo "✅ 健康检查通过！服务运行正常"
+            else
+              echo "❌ 健康检查失败，正在输出服务日志："
+              sudo systemctl status daa-monitor --no-pager
+            fi
+
+            echo "=== 7. 清理临时文件 ==="
+            rm -f /tmp/daa-monitor.tar.gz /tmp/market.db.bak
+            echo "🎉 部署完成！"

@@ -1,365 +1,125 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>大A监控</title>
-<link rel="icon" href="data:,">
-<style>
-  :root {
-    --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
-    --text: #c9d1d9; --text-dim: #8b949e;
-    --red: #f85149; --green: #3fb950; --blue: #58a6ff; --orange: #d2991d;
-    --radius: 8px; --gap: 10px;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    font-size: 13px; padding: 12px; height: 100vh;
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  .header { display: flex; justify-content: space-between; align-items: center; padding: 4px 0 8px; flex-shrink: 0; }
-  .header h1 { font-size: 16px; font-weight: 600; }
-  .header .update { color: var(--text-dim); font-size: 11px; }
-  .header .status { font-size: 11px; margin-left: 8px; }
-
-  .index-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); margin-bottom: var(--gap); flex-shrink: 0; }
-  .index-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
-  .index-card .ic-top { display: flex; justify-content: space-between; align-items: flex-start; }
-  .index-card .ic-name { font-size: 12px; color: var(--text-dim); }
-  .index-card .ic-price { font-size: 20px; font-weight: 700; }
-  .index-card .ic-change { font-size: 13px; }
-  .index-card .ic-ma { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-dim); }
-  .index-card .ic-ma .ma-pct { font-weight: 700; font-size: 14px; }
-  .up { color: var(--red); } .down { color: var(--green); }
-  .pill { display:inline-block; padding:2px 10px; border-radius:10px; font-size:13px; font-weight:700; }
-  .pill.low { background: rgba(63,185,80,0.15); color: var(--green); }
-  .pill.fair { background: rgba(210,153,29,0.15); color: var(--orange); }
-  .pill.high { background: rgba(248,81,73,0.15); color: var(--red); }
-
-  .row2 { display: grid; grid-template-columns: 3fr 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); flex-shrink: 0; }
-  .ma2500-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; flex-direction: column; }
-  .ma2500-card .label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
-  .ma2500-card .ma-row { display: flex; align-items: baseline; gap: 12px; }
-  .ma2500-card .ma-val { font-size: 18px; font-weight: 700; }
-  .ma2500-card .ma-deviation { font-size: 14px; font-weight: 700; }
-  .ma2500-card canvas { flex: 1; width: 100%; min-height: 0; margin: 4px 0; border-radius: 4px; }
-  .ma2500-card .bar-bg { height: 6px; background: #21262d; border-radius: 3px; margin: 4px 0; overflow: hidden; }
-  .ma2500-card .bar-fill { height: 100%; border-radius: 3px; background: var(--orange); transition: width 0.5s; }
-  .ma2500-card .zone-row { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-dim); }
-
-  .sent-card, .vol-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
-  .sent-card .label, .vol-card .label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
-  .sent-card .ratio { font-size: 28px; font-weight: 700; }
-  .sent-card .detail { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
-  .mood { display:inline-block; margin-top:6px; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:700; }
-  .mood.positive { background: rgba(248,81,73,0.12); color: var(--red); }
-  .mood.negative { background: rgba(63,185,80,0.12); color: var(--green); }
-  .vol-card .vol-val { font-size: 28px; font-weight: 700; }
-  .vol-tag { display:inline-block; margin-top:6px; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:700; }
-  .vol-tag.active { background: rgba(248,81,73,0.12); color: var(--red); }
-  .vol-tag.normal { background: rgba(210,153,29,0.12); color: var(--orange); }
-  .vol-tag.quiet { background: rgba(139,148,158,0.12); color: var(--text-dim); }
-
-  .stock-section { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: var(--gap); }
-  .stock-section .section-title { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
-  .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; overflow-y: auto; flex: 1; align-content: start; }
-  .stock-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
-  .stock-card .sc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-  .stock-card .sc-name { font-size: 14px; font-weight: 700; }
-  .stock-card .sc-code { font-size: 10px; color: var(--text-dim); }
-  .stock-card .sc-price { font-size: 18px; font-weight: 700; }
-  .stock-card .sc-mapping { background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.15); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-  .stock-card .sc-mapping .map-label { font-size: 10px; color: var(--blue); white-space: nowrap; }
-  .stock-card .sc-mapping .map-big { font-size: 28px; font-weight: 800; color: var(--blue); letter-spacing: -1px; }
-  .stock-card .sc-mapping .map-current { text-align: right; min-width: 0; }
-  .stock-card .sc-mapping .map-cur-label { font-size: 10px; color: var(--text-dim); }
-  .stock-card .sc-mapping .map-cur-val { font-size: 13px; font-weight: 700; }
-  .sc-mapping .map-divider { color: var(--text-dim); font-size: 18px; margin: 0 2px; }
-  .sc-mapping .map-conclusion { margin-left: auto; font-size: 14px; font-weight: 700; text-align: right; line-height: 1.3; }
-  .sc-mapping .map-conclusion .mc-pct { font-size: 16px; }
-  .stock-card .sc-fund { display: flex; gap: 10px; padding-top: 2px; }
-  .stock-card .sc-fund .kv { flex: 1; text-align: center; }
-  .stock-card .sc-fund .kv .k { font-size: 10px; color: var(--text-dim); }
-  .stock-card .sc-fund .kv .v { font-size: 15px; font-weight: 700; }
-
-  .footer { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; font-size: 12px; color: var(--text-dim); flex-shrink: 0; }
-  .add-stock { font-size: 11px; color: var(--blue); cursor: pointer; }
-  .add-stock:hover { text-decoration: underline; }
-  .empty-state { color: var(--text-dim); text-align: center; padding: 20px; font-size: 13px; }
-
-  .dialog-overlay { display: none; position: fixed; top:0;left:0;right:0;bottom:0; background: rgba(0,0,0,0.6); z-index:100; justify-content:center; align-items:center; }
-  .dialog-overlay.show { display: flex; }
-  .dialog { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; width: 320px; }
-  .dialog h3 { margin-bottom: 12px; font-size: 14px; }
-  .dialog input, .dialog select { width: 100%; padding: 8px 10px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 13px; }
-  .dialog .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
-  .dialog button { padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); cursor: pointer; font-size: 13px; }
-  .dialog button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大A监控</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/app.css?v=20260716-wechat-alerts">
 </head>
 <body>
+<main class="app">
+  <header class="topbar">
+    <div class="brand"><h1>大A监控</h1><span class="subtitle">极简 A 股市场监控面板 · MA2500 估值、趋势、涨跌分布和自选股位置</span></div>
+    <div class="runtime"><i></i><span id="status">加载中...</span><span id="updateTime">10 秒自动刷新</span></div>
+  </header>
 
-<div class="header">
-  <h1>📊 大A监控</h1>
-  <div><span class="status" id="status">⏳ 加载中...</span><span class="update" id="updateTime"></span></div>
-</div>
+  <section class="indices" id="indexRow" aria-label="指数总览"></section>
 
-<div class="index-row" id="indexRow"></div>
-
-<div class="row2">
-  <div class="ma2500-card">
-    <div class="label">📍 上证指数 · MA2500 十年线 + 估值区间</div>
-    <div class="ma-row">
-      <span class="ma-val" id="maPrice">--</span>
-      <span class="ma-deviation" id="maDeviation">--</span>
-      <span style="font-size:11px;color:var(--text-dim);" id="maPct">--</span>
-      <span class="pill" id="maTag">--</span>
+  <section class="card ma-card">
+    <div class="ma-titlebar">
+      <div class="ma-title-left"><h2 class="section-title">上证指数 · MA2500 估值区间</h2><strong class="ma-head-price" id="maPrice">--</strong><span class="pill" id="maTag">--</span></div>
+      <div class="ma-title-meta"><span class="section-sub" id="maValue">MA2500 --</span></div>
     </div>
-    <canvas id="maChart"></canvas>
-    <div class="bar-bg"><div class="bar-fill" id="maBar" style="width:50%"></div></div>
-    <div class="zone-row">
-      <span>极度低估</span><span>低估</span><span>合理</span><span>高估</span><span>极度高估</span>
+    <div class="chart-wrap"><canvas id="maChart"></canvas><div class="chart-empty hidden" id="maEmpty"></div></div>
+  </section>
+
+  <section class="card analysis-card">
+    <div class="analysis-toolbar">
+      <h2 class="section-title">市场状态分析 ▼</h2>
+      <span class="analysis-selector">上证指数 - MA250斜率分析</span>
+      <span class="pill" id="trendTag">--</span>
     </div>
-  </div>
+    <div class="analysis-panels">
+      <section class="market-panel trend-panel" aria-label="K线图">
+        <div class="market-panel-head">
+          <strong class="market-panel-title">K线图</strong>
+          <div class="market-legend"><span class="legend-item blue-line">MA250</span><span class="legend-item orange-line">MA120</span></div>
+        </div>
+        <div class="market-canvas-wrap"><canvas id="trendChart"></canvas></div>
+      </section>
+      <section class="market-panel derivative-panel" aria-label="MA250 一阶导">
+        <div class="market-panel-head">
+          <strong class="market-panel-title">MA250 一阶导</strong>
+          <div class="market-legend"><span class="legend-item red-line">斜率 &gt; 0 (牛市)</span><span class="legend-item teal-line">斜率 &le; 0 (熊市)</span></div>
+        </div>
+        <div class="market-canvas-wrap"><canvas id="slopeChart"></canvas></div>
+      </section>
+      <section class="market-panel derivative-panel" aria-label="MA250 二阶导">
+        <div class="market-panel-head">
+          <strong class="market-panel-title">MA250 二阶导</strong>
+          <div class="market-legend"><span class="legend-item red-line">&gt; 0</span><span class="legend-item teal-line">&le; 0</span><span class="legend-item threshold">- - - 阈值 -4%</span></div>
+        </div>
+        <div class="market-canvas-wrap"><canvas id="accelChart"></canvas></div>
+      </section>
+    </div>
+  </section>
 
-  <div class="sent-card">
-    <div class="label">😊 市场情绪</div>
-    <div class="ratio" id="sentRatio">--</div>
-    <div class="detail" id="sentDetail">--</div>
-    <div class="detail" id="sentLimit">--</div>
-    <span class="mood" id="sentMood">--</span>
-  </div>
+  <section class="card distribution-card">
+    <div class="section-head">
+      <div><h2>涨跌分布</h2><p>融合市场情绪、成交量和全市场涨跌幅分桶</p></div>
+      <span class="pill gray" id="moodTag">等待实时数据</span>
+    </div>
+    <div id="distributionContent"><div class="empty-state">等待实时数据</div></div>
+  </section>
 
-  <div class="vol-card">
-    <div class="label">📊 成交量</div>
-    <div class="vol-val" id="volVal">--</div>
-    <span class="vol-tag" id="volTag">--</span>
-  </div>
-</div>
+  <section class="card stock-panel">
+    <div class="section-head">
+      <h2>自选股 · 卡片网格（<span id="stockCount">0</span> / 20）</h2>
+      <div class="stock-tools"><input id="quickFilter" placeholder="筛选当前卡片"><button title="添加股票" onclick="showAddDialog()">+</button><button title="重新加载" onclick="refresh()">↻</button></div>
+    </div>
+    <div class="stock-grid" id="stockGrid"><div class="empty-state">加载中...</div></div>
+  </section>
 
-<div class="stock-section">
-  <div class="section-title">
-    <span>📈 自选股（<span id="stockCount">0</span>只）</span>
-    <span class="add-stock" onclick="showAddDialog()">+ 添加</span>
-  </div>
-  <div class="stock-grid" id="stockGrid"><div class="empty-state">加载中...</div></div>
-</div>
+  <section class="card alert-panel">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">微信提醒</h2>
+        <div class="section-sub">目标价格达到后发送一次微信消息，触发后自动停用</div>
+      </div>
+      <button class="primary-action" type="button" onclick="showAlertDialog()">添加提醒</button>
+    </div>
+    <div class="alert-content">
+      <div class="recipient-manager">
+        <div class="recipient-head">
+          <div><strong>微信接收人管理</strong><small>先保存接收人预设，添加提醒时从下拉框选择</small></div>
+          <button class="primary-action" type="button" onclick="showRecipientDialog()">新增接收人</button>
+        </div>
+        <div class="recipient-list" id="recipientList"><div class="alert-empty">暂无接收人</div></div>
+      </div>
+      <div class="alert-divider"></div>
+      <div id="alertList"><div class="alert-empty">暂无微信提醒</div></div>
+    </div>
+  </section>
 
-<div class="footer" id="summary">💬 加载中...</div>
+  <footer class="card footer"><i></i><span><strong>一句话总结：</strong><span id="summary">加载中...</span></span></footer>
+</main>
 
-<div class="dialog-overlay" id="addDialog">
-  <div class="dialog">
-    <h3>添加自选股</h3>
-    <input type="text" id="addCode" placeholder="股票代码，如 600519">
-    <select id="addExchange"><option value="1">沪市</option><option value="0">深市</option></select>
-    <div class="btn-row"><button onclick="hideAddDialog()">取消</button><button class="primary" onclick="doAddStock()">添加</button></div>
-  </div>
-</div>
+<aside class="dialog" id="addDialog" aria-label="添加股票">
+  <div class="section-head"><h2>添加自选股</h2><span class="pill gray">搜索候选</span></div>
+  <input id="addCode" placeholder="输入股票名称或代码" oninput="searchStockInput()">
+  <select id="addExchange"><option value="1">沪市</option><option value="0">深市</option></select>
+  <div class="result-list" id="searchResults"></div>
+  <div class="dialog-actions"><button onclick="hideAddDialog()">取消</button><button class="primary" onclick="doAddStock()">添加</button></div>
+</aside>
 
-<script>
-function fp(v){return v!=null?Number(v).toFixed(2):'--'}
-function fpp(v){if(v==null)return'--';var n=Number(v);return(n>0?'+':'')+n.toFixed(2)+'%'}
-function fv(v){if(v==null||v===0)return'--';return(v/10000).toFixed(2)}
-function fmv(v){if(v==null)return'--';v=Number(v);if(v>=10000)return(v/10000).toFixed(1)+'万亿';return v.toFixed(0)+'亿'}
+<aside class="dialog alert-dialog" id="alertDialog" aria-label="添加微信提醒">
+  <div class="section-head"><h2 class="section-title">添加微信提醒</h2><span class="pill gray">一次性提醒</span></div>
+  <label class="form-field">选择股票<select id="alertStock"></select></label>
+  <label class="form-field">目标价格<input id="alertTarget" type="number" min="0.01" step="0.01" placeholder="例如 30.00"></label>
+  <label class="form-field">微信接收人<select id="alertRecipient"></select></label>
+  <div class="alert-note">只能选择已保存的微信接收人预设。达到或超过目标价格后发送一次微信消息，发送成功后自动停用。</div>
+  <div class="dialog-actions"><button type="button" onclick="hideAlertDialog()">取消</button><button class="primary" type="button" onclick="doAddAlert()">保存提醒</button></div>
+</aside>
 
-async function refresh(){
-  try{
-    var r=await fetch('/api/dashboard');
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    render(await r.json());
-  }catch(e){
-    console.error(e);
-    document.getElementById('status').innerHTML='🟡 连接中...';
-  }
-}
-
-function render(data){
-  if(!data||!data.indices||!data.indices.length){document.getElementById('status').innerHTML='🟡 等待数据...';return}
-  document.getElementById('status').innerHTML='🟢 在线';
-  document.getElementById('updateTime').textContent='更新 '+data.time;
-
-  // 指数
-  var h='';
-  for(var i=0;i<data.indices.length;i++){
-    var d=data.indices[i],c=d.change_pct>0?'up':d.change_pct<0?'down':'';
-    var devCls=d.deviation>0?'up':'down',devSign=d.deviation>0?'+':'';
-    h+='<div class="index-card"><div class="ic-top"><span class="ic-name">'+d.name+'</span><span class="ic-price '+c+'">'+fp(d.price)+'</span></div>';
-    h+='<div class="ic-change '+c+'">'+(d.change_pct>0?'+':'')+fpp(d.change_pct)+'</div>';
-    h+='<div class="ic-ma"><span>vs 十年线 <span class="ma-pct '+devCls+'">'+devSign+(d.deviation!=null?d.deviation.toFixed(1)+'%':'--')+'</span></span>';
-    h+='<span class="pill '+(d.cls_label||'fair')+'">'+(d.cls_text||'--')+(d.deviation_pct!=null?' · '+d.deviation_pct+'%':'')+'</span></div></div>';
-  }
-  document.getElementById('indexRow').innerHTML=h;
-
-  // MA2500
-  var sh=data.indices[0];
-  if(sh){
-    document.getElementById('maPrice').textContent=fp(sh.price);
-    var dc=sh.deviation>0?'up':'down';
-    document.getElementById('maDeviation').className='ma-deviation '+dc;
-    document.getElementById('maDeviation').textContent=(sh.deviation>0?'+':'')+(sh.deviation!=null?sh.deviation.toFixed(1)+'%':'--');
-    document.getElementById('maPct').textContent=sh.deviation_pct!=null?'历史分位 '+sh.deviation_pct+'%':'--';
-    var tag=document.getElementById('maTag');tag.className='pill '+(sh.cls_label||'fair');tag.textContent=sh.cls_text||'--';
-    document.getElementById('maBar').style.width=(sh.deviation_pct||50)+'%';
-  }
-
-  // 图表
-  if(data.ma2500_chart&&data.ma2500_chart.length)drawChart(data.ma2500_chart);
-
-  // 情绪
-  var sent=data.sentiment||{};
-  document.getElementById('sentRatio').className='ratio '+((sent.ratio||0)>=1?'up':'down');
-  document.getElementById('sentRatio').textContent=sent.ratio||'--';
-  document.getElementById('sentDetail').textContent='涨 '+(sent.up_count||0)+' / 跌 '+(sent.down_count||0);
-  document.getElementById('sentLimit').textContent='涨停 '+(sent.limit_up||0)+' · 跌停 '+(sent.limit_down||0);
-  var me=document.getElementById('sentMood');me.className='mood '+(sent.mood_cls||'positive');me.textContent=sent.mood_label||'--';
-
-  // 成交量
-  var vol=data.volume||{};
-  document.getElementById('volVal').innerHTML=fv(vol.total_amount)+'<span style="font-size:14px;font-weight:400"> 万亿</span>';
-  var vt=document.getElementById('volTag');vt.className='vol-tag '+(vol.cls||'normal');vt.textContent='量能'+(vol.label||'--');
-
-  // 自选股
-  var stocks=data.stocks||[];
-  document.getElementById('stockCount').textContent=stocks.length;
-  var grid=document.getElementById('stockGrid');
-  if(!stocks.length){grid.innerHTML='<div class="empty-state">暂无自选股，点击"+ 添加"添加</div>'}
-  else{
-    var sh2='';
-    for(var si=0;si<stocks.length;si++){
-      var s=stocks[si];
-      var cc=s.cls_label==='low'?'color:var(--green)':s.cls_label==='high'?'color:var(--red)':'color:var(--orange)';
-      var cmp=s.map_compare==='up'?'up':s.map_compare==='down'?'down':'';
-      var ar=s.map_compare==='up'?'↑':s.map_compare==='down'?'↓':'≈';
-      sh2+='<div class="stock-card"><div class="sc-top"><div><div class="sc-name">'+s.name+'</div><div class="sc-code">'+s.code+'</div></div><div class="sc-price">'+fp(s.price)+'</div></div>';
-      sh2+='<div class="sc-mapping"><span class="map-label">相似价位<br>对应上证</span><span class="map-big">'+(s.map_sh_avg!=null?Math.round(s.map_sh_avg):'--')+'</span><span class="map-divider">→</span>';
-      sh2+='<span class="map-current"><div class="map-cur-label">当前上证</div><div class="map-cur-val '+cmp+'">'+(s.sh_current!=null?fp(s.sh_current):'--')+' '+ar+'</div></span>';
-      sh2+='<span class="map-conclusion" style="'+cc+'"><span class="mc-pct">'+(s.pct!=null?s.pct+'%':'--')+'</span><br>'+(s.cls_text||'--')+'</span></div>';
-      sh2+='<div class="sc-fund">';
-      sh2+='<div class="kv"><div class="k">PE</div><div class="v">'+(s.pe_ttm!=null?Number(s.pe_ttm).toFixed(1):'--')+'</div></div>';
-      sh2+='<div class="kv"><div class="k">PB</div><div class="v">'+(s.pb!=null?Number(s.pb).toFixed(2):'--')+'</div></div>';
-      sh2+='<div class="kv"><div class="k">市值</div><div class="v">'+fmv(s.total_mv)+'</div></div>';
-      sh2+='</div></div>';
-    }
-    grid.innerHTML=sh2;
-  }
-
-  // 总结
-  document.getElementById('summary').textContent='💬 '+(data.summary||'数据加载中...');
-}
-
-function drawChart(data){
-  var c=document.getElementById('maChart');
-  if(!c)return;
-  var rect=c.parentElement.getBoundingClientRect();
-  var W=rect.width-28,H=110,dpr=window.devicePixelRatio||1;
-  if(W<=0)W=600;
-  c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';
-  var ctx=c.getContext('2d');ctx.scale(dpr,dpr);
-
-  var N=data.length,closes=[],mas=[];
-  for(var i=0;i<N;i++){
-    if(data[i].close!=null)closes.push(data[i].close);
-    if(data[i].ma2500!=null)mas.push(data[i].ma2500);
-    if(data[i].ma_plus30!=null)mas.push(data[i].ma_plus30);
-    if(data[i].ma_minus30!=null)mas.push(data[i].ma_minus30);
-  }
-  if(!closes.length)return;
-  var min=Math.min.apply(null,closes.concat(mas))-20;
-  var max=Math.max.apply(null,closes.concat(mas))+20;
-  var range=max-min;
-  function x(i){return(i/(N-1))*W}
-  function y(v){return H-((v-min)/range)*H}
-
-  // === 6色区间填充 ===
-  var zones=[
-    {key:'ma_plus30',top:function(d){return d.ma_plus30?y(d.ma_plus30):0},bottom:0,color:'rgba(248,81,73,0.15)'},
-    {key:'ma_plus10',top:function(d){return d.ma_plus10?y(d.ma_plus10):0},bottom:function(d){return d.ma_plus30?y(d.ma_plus30):0},color:'rgba(248,81,73,0.07)'},
-    {key:'ma2500',top:function(d){return d.ma2500?y(d.ma2500):0},bottom:function(d){return d.ma_plus10?y(d.ma_plus10):0},color:'rgba(210,153,29,0.04)'},
-    {key:'ma_minus10',top:function(d){return d.ma_minus10?y(d.ma_minus10):0},bottom:function(d){return d.ma2500?y(d.ma2500):0},color:'rgba(63,185,80,0.04)'},
-    {key:'ma_minus30',top:function(d){return d.ma_minus30?y(d.ma_minus30):0},bottom:function(d){return d.ma_minus10?y(d.ma_minus10):0},color:'rgba(63,185,80,0.07)'},
-    {key:'bottom',top:H,bottom:function(d){return d.ma_minus30?y(d.ma_minus30):0},color:'rgba(63,185,80,0.15)'},
-  ];
-  for(var zi=0;zi<zones.length;zi++){
-    var z=zones[zi];
-    ctx.fillStyle=z.color;
-    for(var i=0;i<N;i++){
-      var t=typeof z.top==='function'?z.top(data[i]):z.top;
-      var b=typeof z.bottom==='function'?z.bottom(data[i]):z.bottom;
-      if(z.key==='bottom'){t=H;b=typeof z.bottom==='function'?z.bottom(data[i]):0}
-      ctx.fillRect(Math.floor(x(i)),Math.min(t,b),Math.ceil(W/N)+1,Math.abs(t-b));
-    }
-  }
-
-  // === 4条边界虚线 ===
-  var boundaries=['ma_plus30','ma_plus10','ma_minus10','ma_minus30'];
-  var bstyles=['rgba(248,81,73,0.3)','rgba(248,81,73,0.2)','rgba(63,185,80,0.2)','rgba(63,185,80,0.3)'];
-  for(var bi=0;bi<boundaries.length;bi++){
-    ctx.strokeStyle=bstyles[bi];ctx.lineWidth=0.8;ctx.setLineDash([3,6]);
-    ctx.beginPath();var st=false;
-    for(var i=0;i<N;i++){
-      var val=data[i][boundaries[bi]];
-      if(val==null)continue;
-      if(st)ctx.lineTo(x(i),y(val));else{ctx.moveTo(x(i),y(val));st=true}
-    }
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // === MA2500 中心线 ===
-  ctx.strokeStyle='#d2991d';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
-  ctx.beginPath();st=false;
-  for(var i=0;i<N;i++){
-    if(data[i].ma2500==null)continue;
-    if(st)ctx.lineTo(x(i),y(data[i].ma2500));else{ctx.moveTo(x(i),y(data[i].ma2500));st=true}
-  }
-  ctx.stroke();ctx.setLineDash([]);
-
-  // === 上证指数线 ===
-  ctx.strokeStyle='#c9d1d9';ctx.lineWidth=2;
-  ctx.beginPath();st=false;
-  for(var i=0;i<N;i++){
-    if(data[i].close==null)continue;
-    if(st)ctx.lineTo(x(i),y(data[i].close));else{ctx.moveTo(x(i),y(data[i].close));st=true}
-  }
-  ctx.stroke();
-
-  // 当前点位标记
-  var last=data[N-1];
-  if(last&&last.close!=null&&last.ma2500!=null){
-    var lx=x(N-1),ly=y(last.close),ab=last.close>last.ma2500;
-    ctx.fillStyle=ab?'#f85149':'#3fb950';ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=ab?'#f85149':'#3fb950';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(lx,ly,6,0,Math.PI*2);ctx.stroke();
-  }
-
-  // Y轴
-  ctx.fillStyle='#8b949e';ctx.font='9px sans-serif';ctx.textAlign='left';
-  for(var g=0;g<=5;g++)ctx.fillText(Math.round(max-(range/5)*g),2,(H/5)*g+10);
-
-  // 年份
-  ctx.textAlign='center';
-  var yrs={};
-  for(var i=0;i<N;i++){var yr=(data[i].date||'').substring(0,4);if(yr&&!yrs[yr])yrs[yr]=i}
-  for(var yr in yrs)if(yrs.hasOwnProperty(yr))ctx.fillText(yr,x(yrs[yr]),H-2);
-
-  // 图例
-  ctx.textAlign='right';
-  ctx.fillStyle='#c9d1d9';ctx.fillText('── 上证',W-4,12);
-  ctx.fillStyle='#d2991d';ctx.fillText('- - MA2500',W-4,24);
-}
-
-function showAddDialog(){document.getElementById('addDialog').classList.add('show');document.getElementById('addCode').focus()}
-function hideAddDialog(){document.getElementById('addDialog').classList.remove('show');document.getElementById('addCode').value=''}
-async function doAddStock(){
-  var code=document.getElementById('addCode').value.trim();
-  if(!code)return;
-  await fetch('/api/watchlist?action=add&code='+code+'&exchange='+document.getElementById('addExchange').value+'&name='+code);
-  hideAddDialog();refresh();
-}
-
-refresh();setInterval(refresh,10000);
-document.getElementById('addDialog').addEventListener('click',function(e){if(e.target===this)hideAddDialog()});
-</script>
+<aside class="dialog recipient-dialog" id="recipientDialog" aria-label="新增微信接收人">
+  <div class="section-head"><h2 class="section-title">新增微信接收人</h2><span class="pill gray">管理预设</span></div>
+  <label class="form-field">接收人名称<input id="recipientName" type="text" placeholder="例如：我的备用号"></label>
+  <label class="form-field">OpenID<input id="recipientUserid" type="text" placeholder="输入微信用户 OpenID"></label>
+  <label class="form-check"><input id="recipientDefault" type="checkbox"> 设为默认接收人</label>
+  <div class="alert-note">OpenID 只在接收人管理中维护；提醒配置仅选择预设，不重复填写。</div>
+  <div class="dialog-actions"><button type="button" onclick="hideRecipientDialog()">取消</button><button class="primary" type="button" onclick="doAddRecipient()">保存接收人</button></div>
+</aside>
+<script src="/app.js?v=20260716-wechat-alerts"></script>
 </body>
 </html>

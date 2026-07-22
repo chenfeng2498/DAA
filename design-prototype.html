@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大A监控 · 设计原型</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #eef0ff;
+    --panel: rgba(255, 255, 255, .78);
+    --panel-solid: #ffffff;
+    --panel-soft: rgba(255, 255, 255, .56);
+    --line: rgba(148, 163, 184, .18);
+    --line-soft: rgba(100, 116, 139, .14);
+    --text: #3d4b61;
+    --muted: #718096;
+    --red: #e5484d;
+    --green: #16a34a;
+    --orange: #c98505;
+    --blue: #2563eb;
+    --cyan: #0891b2;
+    --shadow: 0 6px 18px rgba(76, 81, 140, .06);
+    --radius: 12px;
+    --gap: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; max-width: 100%; overflow-x: hidden; }
+  body {
+    margin: 0;
+    padding-bottom: 72px;
+    background: linear-gradient(180deg, #f1edff 0, var(--bg) 260px, #eef0ff 100%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  button, input { font: inherit; }
+
+  .app {
+    width: min(1480px, 100%);
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 18px 14px 28px;
+    display: grid;
+    gap: var(--gap);
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 0 4px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  h1 {
+    margin: 0;
+    color: #8061ef;
+    font-size: 21px;
+    font-weight: 780;
+    white-space: nowrap;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .runtime {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, .13);
+  }
+
+  .grid { display: grid; gap: var(--gap); min-width: 0; }
+  .indices { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .card {
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(8px);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 22px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 720;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .pill.low { color: var(--green); background: rgba(22, 163, 74, .10); }
+  .pill.fair { color: var(--orange); background: rgba(201, 133, 5, .12); }
+  .pill.high { color: var(--red); background: rgba(229, 72, 77, .10); }
+  .pill.blue { color: var(--blue); background: rgba(37, 99, 235, .10); }
+  .pill.gray { color: var(--muted); background: rgba(100, 116, 139, .10); }
+
+  .up { color: var(--red); }
+  .down { color: var(--green); }
+  .neutral { color: var(--orange); }
+  .blue { color: var(--blue); }
+
+  .section-head,
+  .index-head,
+  .stock-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .section-title {
+    margin: 0;
+    color: #3d4b61;
+    font-size: 15px;
+    font-weight: 760;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .index-card {
+    padding: 16px 17px;
+    display: grid;
+    gap: 12px;
+    min-height: 132px;
+    background: rgba(255, 255, 255, .72);
+  }
+
+  .index-card.insufficient { background: #fbfcfe; }
+
+  .info-button {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid #b8c4d4;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 16px;
+  }
+
+  .name {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .value-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .index-value {
+    font-size: clamp(25px, 2.8vw, 38px);
+    font-weight: 820;
+    line-height: 1;
+  }
+
+  .change {
+    font-weight: 720;
+    white-space: nowrap;
+  }
+
+  .ma-card {
+    padding: 0;
+    display: grid;
+    grid-template-rows: auto minmax(560px, 62vh);
+    gap: 0;
+    overflow: hidden;
+    background: #eef0ff;
+    border-color: #dfe4fb;
+  }
+
+  .ma-titlebar {
+    min-height: 60px;
+    padding: 12px 17px;
+    background: rgba(255, 255, 255, .58);
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .ma-title-left,
+  .ma-title-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .ma-head-price {
+    color: var(--red);
+    font-size: 22px;
+    font-weight: 820;
+    line-height: 1;
+  }
+
+  .chart-wrap {
+    position: relative;
+    min-height: 0;
+    margin: 14px;
+    border: 1px solid rgba(148, 163, 184, .16);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .72);
+  }
+
+  .chart-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    color: var(--muted);
+    text-align: center;
+    background: rgba(248, 250, 252, .88);
+  }
+
+  .chart-empty strong {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text);
+    font-size: 16px;
+  }
+
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .zone-labels {
+    position: absolute;
+    inset: 14px 12px 14px auto;
+    width: 96px;
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
+    pointer-events: none;
+    color: #344054;
+    font-size: 11px;
+    font-weight: 760;
+  }
+
+  .zone-labels span {
+    align-self: center;
+    justify-self: end;
+    padding: 2px 7px;
+    border: 1px solid rgba(148, 163, 184, .28);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .78);
+    backdrop-filter: blur(3px);
+  }
+
+  .analysis-card,
+  .distribution-card,
+  .stock-panel {
+    padding: 16px 17px 17px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .distribution-card,
+  .stock-panel {
+    padding: 0;
+    overflow: hidden;
+    background: #eef0ff;
+    border-color: #dfe4fb;
+  }
+
+  .distribution-card > .section-head,
+  .stock-panel > .section-head {
+    min-height: 60px;
+    margin: 0;
+    padding: 12px 17px;
+    background: rgba(255, 255, 255, .58);
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+  }
+
+  .distribution-card > :not(.section-head),
+  .stock-panel > :not(.section-head) {
+    margin-right: 17px;
+    margin-left: 17px;
+  }
+
+  .analysis-card {
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+    background: #eef0ff;
+    border-color: #dfe4fb;
+  }
+
+  .analysis-toolbar {
+    min-height: 54px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, .58);
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+  }
+
+  .analysis-toolbar .section-title {
+    color: #8061ef;
+    font-size: 17px;
+  }
+
+  .analysis-selector {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, .76);
+    color: #52627a;
+    font-size: 13px;
+  }
+
+  .analysis-panels {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .market-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, .16);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .72);
+    box-shadow: 0 4px 14px rgba(76, 81, 140, .04);
+  }
+
+  .market-panel.trend-panel { height: 450px; }
+  .market-panel.derivative-panel { height: 245px; }
+
+  .market-panel-head {
+    height: 50px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #3d4b61;
+  }
+
+  .market-panel-title {
+    font-size: 16px;
+    font-weight: 760;
+  }
+
+  .market-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+    color: #667085;
+    font-size: 12px;
+  }
+
+  .legend-item { white-space: nowrap; }
+  .legend-item::before {
+    content: "";
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 5px;
+    background: currentColor;
+    vertical-align: -1px;
+  }
+
+  .legend-item.blue-line { color: #2378d5; }
+  .legend-item.orange-line { color: #ff9200; }
+  .legend-item.red-line { color: #fb5b60; }
+  .legend-item.teal-line { color: #22a6a3; }
+  .legend-item.threshold { color: #e66b72; }
+
+  .market-canvas-wrap {
+    height: calc(100% - 50px);
+    min-height: 0;
+  }
+
+  .tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel-soft);
+  }
+
+  .tab {
+    border: 0;
+    border-radius: 999px;
+    padding: 5px 11px;
+    background: transparent;
+    color: var(--muted);
+    cursor: default;
+  }
+
+  .tab.active {
+    color: var(--blue);
+    background: rgba(37, 99, 235, .10);
+    font-weight: 720;
+  }
+
+  .dist-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+    padding-top: 2px;
+  }
+
+  .summary-item {
+    min-width: 0;
+    min-height: 116px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel-soft);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .summary-item span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .summary-item strong {
+    display: block;
+    margin-top: auto;
+    padding-top: 12px;
+    font-size: clamp(25px, 2.2vw, 32px);
+    line-height: 1.1;
+  }
+
+  .summary-item.primary strong {
+    font-size: clamp(25px, 2.2vw, 32px);
+  }
+
+  .summary-split {
+    display: contents;
+  }
+
+  .summary-mini {
+    min-width: 0;
+    min-height: 116px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel-soft);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .summary-mini span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .summary-mini strong {
+    display: block;
+    margin-top: auto;
+    padding-top: 12px;
+    font-size: clamp(25px, 2.2vw, 32px);
+    line-height: 1.1;
+  }
+
+  .summary-item strong > span,
+  .summary-mini strong > span {
+    display: inline;
+  }
+
+  .summary-pair {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+  }
+
+  .summary-pair .summary-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .summary-pair .summary-value small {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .amount-detail {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .amount-item {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel-soft);
+  }
+
+  .amount-item span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .amount-item strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .amount-item small {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .dist-chart {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 8px;
+    align-items: end;
+    min-height: 300px;
+    padding: 24px 20px 14px;
+    border: 1px solid rgba(148, 163, 184, .28);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, .72);
+  }
+
+  .bucket {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    justify-items: center;
+    gap: 8px;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .bucket-count {
+    font-weight: 780;
+    font-size: 16px;
+  }
+
+  .bucket-bar-wrap {
+    display: flex;
+    align-items: end;
+    width: min(38px, 80%);
+    height: 205px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .bucket-bar {
+    width: 100%;
+    min-height: 3px;
+    border-radius: 5px 5px 0 0;
+    background: var(--muted);
+  }
+
+  .bucket.down .bucket-count { color: var(--green); }
+  .bucket.down .bucket-bar { background: var(--green); }
+  .bucket.up .bucket-count { color: var(--red); }
+  .bucket.up .bucket-bar { background: var(--red); }
+  .bucket.flat .bucket-count { color: var(--muted); }
+  .bucket-label {
+    color: var(--muted);
+    font-weight: 680;
+    white-space: nowrap;
+  }
+
+  .breadth-bar {
+    height: 24px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eef2f7;
+    display: flex;
+  }
+
+  .breadth-bar .down-part { background: var(--green); width: 88%; }
+  .breadth-bar .flat-part { background: #b8c0cc; width: 1%; }
+  .breadth-bar .up-part { background: var(--red); width: 11%; }
+
+  .stock-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .search-box {
+    width: 230px;
+    min-width: 180px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .8);
+    color: var(--text);
+    outline: none;
+  }
+
+  .icon-button {
+    width: 30px;
+    height: 30px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    background: rgba(255, 255, 255, .8);
+  }
+
+  .stock-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .stock-card {
+    padding: 10px 12px;
+    display: grid;
+    grid-template-rows: auto auto auto auto auto;
+    gap: 8px;
+    background: rgba(255, 255, 255, .76);
+  }
+
+  .alert-panel {
+    padding: 0;
+    overflow: hidden;
+    background: #eef0ff;
+    border-color: #dfe4fb;
+  }
+
+  .alert-panel > .section-head {
+    min-height: 60px;
+    padding: 12px 17px;
+    background: rgba(255, 255, 255, .58);
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+  }
+
+  .alert-content {
+    display: grid;
+    gap: 10px;
+    margin: 14px 17px 17px;
+  }
+
+  .recipient-manager {
+    display: grid;
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid rgba(128, 97, 239, .16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .58);
+  }
+
+  .recipient-head,
+  .recipient-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .recipient-head strong,
+  .recipient-head small,
+  .recipient-row strong,
+  .recipient-row small {
+    display: block;
+  }
+
+  .recipient-head small,
+  .recipient-row small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .recipient-list {
+    display: grid;
+    gap: 7px;
+  }
+
+  .recipient-row {
+    min-height: 48px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, .78);
+  }
+
+  .recipient-actions {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .recipient-actions button {
+    min-height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .alert-divider {
+    height: 1px;
+    margin: 2px 0;
+    background: var(--line-soft);
+  }
+
+  .alert-row {
+    min-height: 64px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .76);
+  }
+
+  .alert-row strong,
+  .alert-row small {
+    display: block;
+  }
+
+  .alert-row small,
+  .alert-note {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .alert-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .alert-actions button,
+  .primary-action {
+    min-height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .82);
+    color: var(--text);
+    cursor: default;
+  }
+
+  .primary-action {
+    color: #fff;
+    background: #8061ef;
+    border-color: #8061ef;
+  }
+
+  .alert-empty {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .alert-dialog {
+    width: min(410px, calc(100vw - 28px));
+  }
+
+  .recipient-dialog {
+    width: min(390px, calc(100vw - 28px));
+  }
+
+  .form-field {
+    display: grid;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .form-field input,
+  .form-field select {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .84);
+    color: var(--text);
+  }
+
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .stock-name { font-size: 14px; font-weight: 760; }
+  .stock-code { color: var(--muted); font-size: 10px; }
+  .stock-price { text-align: right; font-size: 18px; font-weight: 800; }
+
+  .delete-button {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .mapping {
+    padding: 8px 10px;
+    border: 1px solid rgba(37, 99, 235, .16);
+    border-radius: 7px;
+    background: rgba(37, 99, 235, .06);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 8px;
+    align-items: end;
+  }
+
+  .mapping-label { grid-column: 1 / -1; color: var(--blue); font-size: 10px; }
+  .mapping-index { color: var(--blue); font-size: clamp(24px, 2.8vw, 31px); font-weight: 840; line-height: 1; }
+  .mapping-now { text-align: right; color: var(--muted); font-size: 10px; }
+  .mapping-now strong { display: block; color: var(--text); font-size: 13px; }
+
+  .stock-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .meta-item {
+    min-width: 0;
+    text-align: center;
+    padding-top: 6px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .meta-item span { display: block; color: var(--muted); font-size: 10px; }
+  .meta-item strong { display: block; margin-top: 2px; font-size: 13px; white-space: nowrap; }
+
+  .footer {
+    position: fixed;
+    left: max(12px, calc((100vw - 1480px) / 2 + 12px));
+    right: max(12px, calc((100vw - 1480px) / 2 + 12px));
+    bottom: 12px;
+    z-index: 4;
+    min-height: 42px;
+    padding: 9px 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .16);
+    backdrop-filter: blur(8px);
+  }
+
+  .footer strong { color: var(--text); }
+  .summary-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex: 0 0 auto; }
+
+  @media (max-width: 1200px) {
+    .indices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ma-card { grid-template-rows: auto minmax(420px, 52vh); }
+    .market-panel.trend-panel { height: 390px; }
+    .market-panel.derivative-panel { height: 220px; }
+    .dist-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .amount-detail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .footer { left: 10px; right: 10px; }
+  }
+
+  @media (max-width: 680px) {
+    .app { padding: 10px; }
+    .topbar { grid-template-columns: 1fr; }
+    .brand { display: grid; gap: 2px; }
+    .runtime { justify-content: flex-start; flex-wrap: wrap; }
+    .indices, .stock-grid { grid-template-columns: 1fr; }
+    .ma-card { grid-template-rows: auto minmax(420px, 62vh); }
+    .analysis-toolbar { align-items: flex-start; flex-direction: column; gap: 6px; }
+    .market-panel.trend-panel { height: 340px; }
+    .market-panel.derivative-panel { height: 205px; }
+    .market-panel-head { height: auto; min-height: 48px; padding: 8px 12px; align-items: flex-start; flex-direction: column; gap: 5px; }
+    .market-canvas-wrap { height: calc(100% - 72px); }
+    .dist-summary { grid-template-columns: 1fr; }
+    .amount-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dist-chart { grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 3px; padding-left: 8px; padding-right: 8px; }
+    .bucket-label { font-size: 9px; }
+    .search-box { flex: 1; width: auto; min-width: 0; }
+    .stock-tools { width: 100%; justify-content: space-between; }
+    .section-head { align-items: flex-start; flex-wrap: wrap; }
+    .footer { align-items: flex-start; }
+    .alert-row { grid-template-columns: 1fr auto; }
+    .alert-actions { grid-column: 1 / -1; justify-content: flex-end; }
+    .recipient-head, .recipient-row { align-items: flex-start; flex-wrap: wrap; }
+    .recipient-actions { width: 100%; justify-content: flex-end; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>大A监控</h1>
+      <span class="subtitle">极简 A 股市场监控面板 · MA2500 估值、趋势、涨跌分布和自选股位置</span>
+    </div>
+    <div class="runtime">
+      <span class="dot"></span>
+      <span>最后更新 14:35:22</span>
+      <span>10 秒自动刷新</span>
+    </div>
+  </header>
+
+  <section class="grid indices" aria-label="指数总览">
+    <article class="card index-card">
+      <div class="index-head"><span class="name">上证指数</span><span class="pill fair">MA2500：估值合理</span></div>
+      <div class="value-row"><span class="index-value up">3250.12</span><span class="change up">+0.85% +27.41</span></div>
+    </article>
+    <article class="card index-card">
+      <div class="index-head"><span class="name">深证成指</span><span class="pill low">MA2500：比较便宜</span></div>
+      <div class="value-row"><span class="index-value down">10850.30</span><span class="change down">-0.32% -34.80</span></div>
+    </article>
+    <article class="card index-card">
+      <div class="index-head"><span class="name">创业板指</span><span class="pill high">MA2500：轻度泡沫</span></div>
+      <div class="value-row"><span class="index-value up">2150.45</span><span class="change up">+1.20% +25.53</span></div>
+    </article>
+    <article class="card index-card insufficient">
+      <div class="index-head"><span class="name">科创50</span><span class="pill gray">MA2500：数据不足 <button class="info-button" title="样本不足，仅有 1820 / 2500 个交易日" aria-label="样本不足，仅有 1820 / 2500 个交易日">i</button></span></div>
+      <div class="value-row"><span class="index-value up">980.23</span><span class="change up">+0.15% +1.47</span></div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="MA2500 核心模块">
+    <article class="card ma-card">
+      <div class="ma-titlebar">
+        <div class="ma-title-left">
+          <h2 class="section-title">上证指数 · MA2500 估值区间</h2>
+          <span class="ma-head-price">2813.43</span>
+          <span class="pill low">比较便宜</span>
+        </div>
+        <div class="ma-title-meta">
+          <span class="section-sub">MA2500 3070.00</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="maChart"></canvas>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="市场状态分析">
+    <article class="card analysis-card">
+      <div class="analysis-toolbar">
+        <h2 class="section-title">市场状态分析 ▼</h2>
+        <span class="analysis-selector">上证指数 - MA250斜率分析</span>
+      </div>
+      <div class="analysis-panels">
+        <section class="market-panel trend-panel" aria-label="K线图">
+          <div class="market-panel-head">
+            <strong class="market-panel-title">K线图</strong>
+            <div class="market-legend">
+              <span class="legend-item blue-line">MA250</span>
+              <span class="legend-item orange-line">MA120</span>
+            </div>
+          </div>
+          <div class="market-canvas-wrap"><canvas id="trendChart"></canvas></div>
+        </section>
+        <section class="market-panel derivative-panel" aria-label="MA250 一阶导">
+          <div class="market-panel-head">
+            <strong class="market-panel-title">MA250 一阶导</strong>
+            <div class="market-legend">
+              <span class="legend-item red-line">斜率 &gt; 0 (牛市)</span>
+              <span class="legend-item teal-line">斜率 &le; 0 (熊市)</span>
+            </div>
+          </div>
+          <div class="market-canvas-wrap"><canvas id="slopeChart"></canvas></div>
+        </section>
+        <section class="market-panel derivative-panel" aria-label="MA250 二阶导">
+          <div class="market-panel-head">
+            <strong class="market-panel-title">MA250 二阶导</strong>
+            <div class="market-legend">
+              <span class="legend-item red-line">&gt; 0</span>
+              <span class="legend-item teal-line">&le; 0</span>
+              <span class="legend-item threshold">- - - 阈值 -4%</span>
+            </div>
+          </div>
+          <div class="market-canvas-wrap"><canvas id="accelChart"></canvas></div>
+        </section>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="涨跌分布">
+    <article class="card distribution-card">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">涨跌分布</h2>
+          <div class="section-sub">融合市场情绪、成交量和全市场涨跌幅分桶</div>
+        </div>
+        <span class="pill fair">情绪正常偏多</span>
+      </div>
+      <div class="dist-summary">
+        <div class="summary-item primary">
+          <span>市场广度</span>
+          <strong class="summary-pair">
+            <span class="summary-value up">617 <small>涨</small></span>
+            <span class="summary-value down">4870 <small>跌</small></span>
+          </strong>
+        </div>
+        <div class="summary-split">
+          <div class="summary-mini"><span>涨跌比</span><strong class="down">0.13</strong></div>
+          <div class="summary-mini"><span>涨停 / 跌停</span><strong><span class="up">30</span> / <span class="down">39</span></strong></div>
+          <div class="summary-mini"><span>成交额 / 量能</span><strong>1.28 <small style="font-size:12px;color:var(--muted)">万亿</small> <span class="neutral" style="font-size:14px">正常</span></strong></div>
+        </div>
+      </div>
+      <div class="dist-chart">
+        <div class="bucket down"><span class="bucket-count">30</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 3%"></i></div><span class="bucket-label">&lt;-10%</span></div>
+        <div class="bucket down"><span class="bucket-count">214</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 10%"></i></div><span class="bucket-label">-10~-7%</span></div>
+        <div class="bucket down"><span class="bucket-count">546</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 26%"></i></div><span class="bucket-label">-7~-5%</span></div>
+        <div class="bucket down"><span class="bucket-count">2003</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 96%"></i></div><span class="bucket-label">-5~-3%</span></div>
+        <div class="bucket down"><span class="bucket-count">2077</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 100%"></i></div><span class="bucket-label">-3~0%</span></div>
+        <div class="bucket flat"><span class="bucket-count">30</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 3%"></i></div><span class="bucket-label">0%</span></div>
+        <div class="bucket up"><span class="bucket-count">427</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 21%"></i></div><span class="bucket-label">0~3%</span></div>
+        <div class="bucket up"><span class="bucket-count">84</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 5%"></i></div><span class="bucket-label">3~5%</span></div>
+        <div class="bucket up"><span class="bucket-count">45</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 4%"></i></div><span class="bucket-label">5~7%</span></div>
+        <div class="bucket up"><span class="bucket-count">36</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 3%"></i></div><span class="bucket-label">7~10%</span></div>
+        <div class="bucket up"><span class="bucket-count">25</span><div class="bucket-bar-wrap"><i class="bucket-bar" style="height: 3%"></i></div><span class="bucket-label">&gt;10%</span></div>
+      </div>
+      <div class="breadth-bar" aria-label="涨跌占比">
+        <span class="down-part"></span><span class="flat-part"></span><span class="up-part"></span>
+      </div>
+      <div class="amount-detail" aria-label="成交额明细">
+        <div class="amount-item"><span>全A</span><strong>1.28 万亿</strong><small class="neutral">量能 正常 · +4%</small></div>
+        <div class="amount-item"><span>沪市A股</span><strong>4920 亿</strong><small class="up">活跃 · +12%</small></div>
+        <div class="amount-item"><span>深市A股</span><strong>6580 亿</strong><small class="neutral">正常 · -2%</small></div>
+        <div class="amount-item"><span>北交所</span><strong>86 亿</strong><small class="down">低迷 · -18%</small></div>
+        <div class="amount-item"><span>ETF</span><strong>3120 亿</strong><small class="up">活跃 · +9%</small></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="自选股">
+    <article class="card stock-panel">
+      <div class="section-head">
+        <h2 class="section-title">自选股 · 卡片网格（5 / 20）</h2>
+        <div class="stock-tools">
+          <input class="search-box" type="text" value="隆基" aria-label="搜索股票">
+          <button class="icon-button" title="添加股票" aria-label="添加股票">+</button>
+          <button class="icon-button" title="重新加载" aria-label="重新加载">↻</button>
+        </div>
+      </div>
+      <div class="stock-grid">
+        <article class="card stock-card">
+          <div class="stock-head"><div><div class="stock-name">隆基绿能</div><div class="stock-code">601012</div></div><button class="delete-button">×</button></div>
+          <div class="stock-head"><span class="stock-price down">22.45</span><span class="change down">-1.12%</span></div>
+          <div class="mapping"><div class="mapping-label">历史分位映射上证</div><div class="mapping-index">2782</div><div class="mapping-now">当前上证<strong class="up">位置更高 ↑</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>个股分位</span><strong class="down">18%</strong></div><div class="meta-item"><span>大盘分位</span><strong>72%</strong></div><div class="meta-item"><span>分位差</span><strong class="up">+54</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>PE</span><strong>12.3</strong></div><div class="meta-item"><span>PB</span><strong>1.85</strong></div><div class="meta-item"><span>市值</span><strong>1680亿</strong></div></div>
+        </article>
+        <article class="card stock-card">
+          <div class="stock-head"><div><div class="stock-name">比亚迪</div><div class="stock-code">002594</div></div><button class="delete-button">×</button></div>
+          <div class="stock-head"><span class="stock-price up">268.30</span><span class="change up">+0.64%</span></div>
+          <div class="mapping"><div class="mapping-label">历史分位映射上证</div><div class="mapping-index">3500</div><div class="mapping-now">当前上证<strong class="down">位置更低 ↓</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>个股分位</span><strong class="up">82%</strong></div><div class="meta-item"><span>大盘分位</span><strong>72%</strong></div><div class="meta-item"><span>分位差</span><strong class="down">-10</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>PE</span><strong>32.1</strong></div><div class="meta-item"><span>PB</span><strong>5.80</strong></div><div class="meta-item"><span>市值</span><strong>8120亿</strong></div></div>
+        </article>
+        <article class="card stock-card">
+          <div class="stock-head"><div><div class="stock-name">宁德时代</div><div class="stock-code">300750</div></div><button class="delete-button">×</button></div>
+          <div class="stock-head"><span class="stock-price down">184.60</span><span class="change down">-0.46%</span></div>
+          <div class="mapping"><div class="mapping-label">历史分位映射上证</div><div class="mapping-index">2890</div><div class="mapping-now">当前上证<strong class="up">位置更高 ↑</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>个股分位</span><strong class="down">24%</strong></div><div class="meta-item"><span>大盘分位</span><strong>72%</strong></div><div class="meta-item"><span>分位差</span><strong class="up">+48</strong></div></div>
+          <div class="stock-meta"><div class="meta-item"><span>PE</span><strong>18.9</strong></div><div class="meta-item"><span>PB</span><strong>4.02</strong></div><div class="meta-item"><span>市值</span><strong>8124亿</strong></div></div>
+        </article>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="微信提醒">
+    <article class="card alert-panel">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">微信提醒</h2>
+          <div class="section-sub">目标价格达到后发送一次微信消息，触发后自动停用</div>
+        </div>
+        <button class="primary-action" type="button">添加提醒</button>
+      </div>
+      <div class="alert-content">
+        <div class="recipient-manager">
+          <div class="recipient-head">
+            <div><strong>微信接收人管理</strong><small>先保存接收人预设，添加提醒时从下拉框选择</small></div>
+            <button class="primary-action" type="button">新增接收人</button>
+          </div>
+          <div class="recipient-list">
+            <div class="recipient-row">
+              <div><strong>默认微信用户</strong><small>OpenID oQEb..._ayQ</small></div>
+              <span class="pill blue">默认</span>
+              <div class="recipient-actions"><button type="button">删除</button></div>
+            </div>
+            <div class="recipient-row">
+              <div><strong>我的备用号</strong><small>OpenID wxu8...91K</small></div>
+              <span class="pill gray">备用</span>
+              <div class="recipient-actions"><button type="button">设为默认</button><button type="button">删除</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="alert-divider"></div>
+        <div class="alert-row">
+          <div><strong>隆基绿能 · 601012</strong><small>目标价格 30.00 · 默认微信用户</small></div>
+          <span class="pill fair">监测中</span>
+          <div class="alert-actions"><button type="button">停用</button><button type="button">删除</button></div>
+        </div>
+        <div class="alert-row">
+          <div><strong>比亚迪 · 002594</strong><small>目标价格 300.00 · OpenID oQEb..._ayQ</small></div>
+          <span class="pill gray">已触发并停用</span>
+          <div class="alert-actions"><button type="button">删除</button></div>
+        </div>
+        <div class="alert-note">每条提醒只发送一次，不会因价格反复波动重复发送；如需再次提醒，请重新添加。</div>
+      </div>
+    </article>
+  </section>
+
+  <footer class="card footer">
+    <span class="summary-dot"></span>
+    <span><strong>一句话总结：</strong>上证 3250，MA2500 当前估值合理；市场情绪正常偏多，成交量正常，自选股中新能源链条位置偏低。</span>
+  </footer>
+</main>
+
+<aside class="dialog alert-dialog" aria-label="添加微信提醒">
+  <div class="section-head"><h2 class="section-title">添加微信提醒</h2><span class="pill gray">一次性提醒</span></div>
+  <label class="form-field">选择股票<select><option>隆基绿能（601012）</option><option>比亚迪（002594）</option><option>宁德时代（300750）</option></select></label>
+  <label class="form-field">目标价格<input type="number" min="0.01" step="0.01" placeholder="例如 30.00"></label>
+  <label class="form-field">微信接收人<select><option>默认微信用户 · oQEb..._ayQ</option><option>我的备用号 · wxu8...91K</option></select></label>
+  <div class="alert-note">只能选择已保存的微信接收人预设。达到或超过目标价格后发送一次微信消息，发送成功后自动停用。</div>
+  <div class="dialog-actions"><button type="button">取消</button><button class="primary" type="button">保存提醒</button></div>
+</aside>
+
+<aside class="dialog recipient-dialog" aria-label="新增微信接收人">
+  <div class="section-head"><h2 class="section-title">新增微信接收人</h2><span class="pill gray">管理预设</span></div>
+  <label class="form-field">接收人名称<input type="text" placeholder="例如：我的备用号"></label>
+  <label class="form-field">OpenID<input type="text" placeholder="输入微信用户 OpenID"></label>
+  <label class="form-check"><input type="checkbox"> 设为默认接收人</label>
+  <div class="alert-note">OpenID 只在接收人管理中维护；提醒配置仅选择预设，不重复填写。</div>
+  <div class="dialog-actions"><button type="button">取消</button><button class="primary" type="button">保存接收人</button></div>
+</aside>
+
+<script>
+(function () {
+  function fitCanvas(canvas, draw) {
+    var box = canvas.parentElement.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(320, Math.floor(box.width));
+    var h = Math.max(160, Math.floor(box.height));
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw(ctx, w, h);
+  }
+
+  function linePath(ctx, arr, x, y) {
+    ctx.beginPath();
+    arr.forEach(function (v, i) {
+      if (i === 0) ctx.moveTo(x(i), y(v));
+      else ctx.lineTo(x(i), y(v));
+    });
+    ctx.stroke();
+  }
+
+  function drawGrid(ctx, left, top, w, h) {
+    ctx.strokeStyle = "rgba(148,163,184,.28)";
+    ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+      var gy = top + g / 4 * h;
+      ctx.beginPath();
+      ctx.moveTo(left, gy);
+      ctx.lineTo(left + w, gy);
+      ctx.stroke();
+    }
+  }
+
+  function drawMA(ctx, width, height) {
+    ctx.clearRect(0, 0, width, height);
+    var left = 62, right = 142, top = 16, bottom = 42;
+    var w = width - left - right, h = height - top - bottom;
+    var min = 1600, max = 6000, count = 150;
+    function x(i) { return left + i / (count - 1) * w; }
+    function y(v) { return top + (max - v) / (max - min) * h; }
+    function ma1(i) {
+      var t = i / (count - 1);
+      return 2880 + t * 250 + Math.sin(t * Math.PI * 1.5) * 60;
+    }
+    function close(i) {
+      var t = i / (count - 1);
+      return 2950 + Math.sin(t * Math.PI * 5.2) * 260 + Math.sin(t * Math.PI * 1.6) * 210 + Math.max(0, t - .76) * 900 - Math.exp(-Math.pow((t - .62) / .12, 2)) * 430;
+    }
+    function fillBand(upper, lower, color) {
+      ctx.beginPath();
+      for (var i = 0; i < count; i++) {
+        if (i === 0) ctx.moveTo(x(i), y(ma1(i) * upper));
+        else ctx.lineTo(x(i), y(ma1(i) * upper));
+      }
+      for (var j = count - 1; j >= 0; j--) ctx.lineTo(x(j), y(ma1(j) * lower));
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    // Extend the outer bands to the plot edges; the six standard lines remain the only labels.
+    ctx.beginPath();
+    ctx.moveTo(x(0), top);
+    ctx.lineTo(x(count - 1), top);
+    for (var topIndex = count - 1; topIndex >= 0; topIndex--) ctx.lineTo(x(topIndex), y(ma1(topIndex) * 1.65));
+    ctx.closePath();
+    ctx.fillStyle = "rgba(180,35,45,.18)";
+    ctx.fill();
+    fillBand(1.65, 1.45, "rgba(229,72,77,.14)");
+    fillBand(1.45, 1.25, "rgba(229,72,77,.09)");
+    fillBand(1.25, 1.05, "rgba(201,133,5,.10)");
+    fillBand(1.05, 1 / 1.15, "rgba(201,133,5,.06)");
+    fillBand(1 / 1.15, 1 / 1.35, "rgba(22,163,74,.09)");
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(ma1(0) * (1 / 1.35)));
+    for (var bottomIndex = 1; bottomIndex < count; bottomIndex++) ctx.lineTo(x(bottomIndex), y(ma1(bottomIndex) * (1 / 1.35)));
+    ctx.lineTo(x(count - 1), top + h);
+    ctx.lineTo(x(0), top + h);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(7,112,74,.16)";
+    ctx.fill();
+
+    drawGrid(ctx, left, top, w, h);
+    var valuationLines = [
+      [1.65, "#b4232d", "玩命"],
+      [1.45, "#e5484d", "高度泡沫"],
+      [1.25, "#f97373", "轻度泡沫"],
+      [1.05, "#c98505", "估值合理"],
+      [1 / 1.15, "#d69e2e", "比较便宜"],
+      [1 / 1.35, "#16a34a", "极度低估"]
+    ];
+    var rightLabels = [];
+    valuationLines.forEach(function (line) {
+      var values = [];
+      for (var lineIndex = 0; lineIndex < count; lineIndex++) values.push(ma1(lineIndex) * line[0]);
+      ctx.strokeStyle = line[1];
+      ctx.lineWidth = line[2] === "估值合理" ? 2.8 : 2.1;
+      ctx.setLineDash(line[2] === "估值合理" ? [8, 5] : []);
+      linePath(ctx, values, x, y);
+      ctx.setLineDash([]);
+      rightLabels.push({ value: values[count - 1], color: line[1], text: line[2] + " " + values[count - 1].toFixed(2) });
+    });
+
+    var priceValues = [];
+    for (var priceIndex = 0; priceIndex < count; priceIndex++) priceValues.push(close(priceIndex));
+    ctx.strokeStyle = "#3d4b61";
+    ctx.lineWidth = 3;
+    linePath(ctx, priceValues, x, y);
+    ctx.fillStyle = "#ef5350";
+    ctx.beginPath();
+    ctx.arc(x(count - 1), y(priceValues[count - 1]), 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    rightLabels.sort(function (a, b) { return y(a.value) - y(b.value); });
+    var previousTagY = top - 20;
+    var labelX = left + w + 8;
+    var labelWidth = right - 14;
+    rightLabels.forEach(function (label) {
+      var tagY = Math.max(top + 10, Math.min(top + h - 10, y(label.value)));
+      if (tagY - previousTagY < 19) tagY = previousTagY + 19;
+      tagY = Math.min(top + h - 10, tagY);
+      ctx.strokeStyle = label.color;
+      ctx.globalAlpha = .5;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(left + w, y(label.value));
+      ctx.lineTo(labelX, tagY);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = label.color;
+      ctx.fillRect(labelX, tagY - 9, labelWidth, 18);
+      ctx.fillStyle = "#fff";
+      ctx.font = "700 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label.text, labelX + labelWidth / 2, tagY + 3.5);
+      previousTagY = tagY;
+    });
+
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#718096";
+    for (var axisIndex = 0; axisIndex <= 5; axisIndex++) {
+      var axisValue = max - axisIndex / 5 * (max - min);
+      ctx.fillText(String(Math.round(axisValue)), left - 10, y(axisValue) + 4);
+    }
+    var years = ["2006", "2008", "2010", "2012", "2014", "2016", "2018", "2020", "2022", "2024", "2026"];
+    ctx.textAlign = "center";
+    years.forEach(function (year, yearIndex) {
+      var px = left + yearIndex / (years.length - 1) * w;
+      ctx.strokeStyle = "rgba(148,163,184,.35)";
+      ctx.beginPath();
+      ctx.moveTo(px, top + h);
+      ctx.lineTo(px, top + h + 5);
+      ctx.stroke();
+      ctx.fillStyle = "#718096";
+      ctx.fillText(year, px, top + h + 20);
+    });
+  }
+
+  function drawTrend(ctx, width, height) {
+    ctx.clearRect(0, 0, width, height);
+    var left = 14, right = 72, top = 8, bottom = 34;
+    var w = width - left - right, h = height - top - bottom;
+    var count = 180, min = 2600, max = 4500;
+    function x(i) { return left + i / (count - 1) * w; }
+    function y(v) { return top + (max - v) / (max - min) * h; }
+    var close = [], ma250 = [], ma120 = [], candles = [];
+    for (var i = 0; i < count; i++) {
+      var t = i / (count - 1);
+      var base = 3150 + t * 850 + Math.sin(t * Math.PI * 5.6) * 115 - Math.exp(-Math.pow((t - .45) / .08, 2)) * 360;
+      var open = base + Math.sin(i * 1.7) * 34;
+      var closeValue = base + Math.cos(i * 1.23) * 28;
+      var high = Math.max(open, closeValue) + 18 + Math.abs(Math.sin(i * 2.1)) * 38;
+      var low = Math.min(open, closeValue) - 18 - Math.abs(Math.cos(i * 1.9)) * 34;
+      candles.push({ open: open, close: closeValue, high: high, low: low });
+      close.push(closeValue);
+      ma250.push(3060 + t * 780 + Math.sin(t * Math.PI * 1.4) * 45);
+      ma120.push(3120 + t * 820 + Math.sin(t * Math.PI * 3.2) * 80);
+    }
+
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    for (var g = 0; g <= 5; g++) {
+      var value = max - g / 5 * (max - min);
+      var gy = y(value);
+      ctx.strokeStyle = "rgba(148,163,184,.18)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(left, gy);
+      ctx.lineTo(left + w, gy);
+      ctx.stroke();
+      ctx.fillStyle = "#667085";
+      ctx.fillText(value.toFixed(2), width - 8, gy + 4);
+    }
+    for (var vg = 0; vg <= 10; vg++) {
+      var vx = left + vg / 10 * w;
+      ctx.strokeStyle = "rgba(148,163,184,.14)";
+      ctx.beginPath();
+      ctx.moveTo(vx, top);
+      ctx.lineTo(vx, top + h);
+      ctx.stroke();
+    }
+
+    var candleWidth = Math.max(2, Math.min(6, w / count * .68));
+    candles.forEach(function (candle, index) {
+      var rising = candle.close >= candle.open;
+      var color = rising ? "#ef5350" : "#10a985";
+      var px = x(index);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px, y(candle.high));
+      ctx.lineTo(px, y(candle.low));
+      ctx.stroke();
+      var bodyTop = y(Math.max(candle.open, candle.close));
+      var bodyHeight = Math.max(1, Math.abs(y(candle.open) - y(candle.close)));
+      ctx.fillRect(px - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+    });
+
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = "#2563eb";
+    linePath(ctx, ma250, x, y);
+    ctx.strokeStyle = "#f59e0b";
+    ctx.setLineDash([4, 4]);
+    linePath(ctx, ma120, x, y);
+    ctx.setLineDash([]);
+
+    var last = candles[count - 1].close;
+    function valueTag(value, color, offset) {
+      var tagY = Math.max(top + 10, Math.min(top + h - 10, y(value) + offset));
+      ctx.fillStyle = color;
+      ctx.fillRect(width - 64, tagY - 10, 58, 20);
+      ctx.fillStyle = "#fff";
+      ctx.font = "700 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(value.toFixed(2), width - 35, tagY + 4);
+    }
+    valueTag(last, "#10b981", -9);
+    valueTag(ma250[count - 1], "#2378d5", 12);
+
+    var dates = ["4月", "7月", "9月", "2024年", "4月", "7月", "9月", "2025年", "4月", "7月", "9月", "2026年", "4月", "7月"];
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#667085";
+    ctx.font = "11px sans-serif";
+    dates.forEach(function (label, index) {
+      var px = left + index / (dates.length - 1) * w;
+      ctx.fillText(label, px, height - 10);
+    });
+  }
+
+  function drawOsc(ctx, width, height, label, color) {
+    ctx.clearRect(0, 0, width, height);
+    var left = 14, right = 72, top = 8, bottom = 25;
+    var w = width - left - right, h = height - top - bottom;
+    var count = 180;
+    var isAccel = label.indexOf("二阶") >= 0;
+    var min = isAccel ? -.06 : -2;
+    var max = isAccel ? .08 : 4;
+    function x(i) { return left + i / (count - 1) * w; }
+    function y(v) { return top + (max - v) / (max - min) * h; }
+    var arr = [];
+    for (var i = 0; i < count; i++) {
+      var t = i / (count - 1);
+      arr.push(isAccel
+        ? Math.sin(t * Math.PI * 7) * .026 + Math.cos(t * Math.PI * 12) * .014 - (t > .82 ? .012 : 0)
+        : Math.sin(t * Math.PI * 4.2) * 1.05 + Math.cos(t * Math.PI * 7) * .34 + (t * 1.8 - .8));
+    }
+
+    var ticks = isAccel ? [.08, .04, 0, -.04] : [4, 2, 0, -2];
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    ticks.forEach(function (tick) {
+      var gy = y(tick);
+      ctx.strokeStyle = tick === 0 ? "#8bc6ff" : "rgba(148,163,184,.18)";
+      ctx.lineWidth = tick === 0 ? 1.3 : 1;
+      ctx.beginPath();
+      ctx.moveTo(left, gy);
+      ctx.lineTo(left + w, gy);
+      ctx.stroke();
+      ctx.fillStyle = "#667085";
+      ctx.fillText(isAccel ? (tick * 100).toFixed(1) + "%" : (tick * 100).toFixed(1) + "%", width - 8, gy + 4);
+    });
+    for (var vg = 0; vg <= 10; vg++) {
+      var vx = left + vg / 10 * w;
+      ctx.strokeStyle = "rgba(148,163,184,.14)";
+      ctx.beginPath();
+      ctx.moveTo(vx, top);
+      ctx.lineTo(vx, top + h);
+      ctx.stroke();
+    }
+
+    // Fill each side of the zero axis and color the stroke by its sign.
+    var zeroY = y(0);
+    for (var side = 0; side < 2; side++) {
+      ctx.beginPath();
+      ctx.moveTo(x(0), zeroY);
+      for (var areaIndex = 0; areaIndex < count; areaIndex++) {
+        var areaValue = side === 0 ? Math.max(0, arr[areaIndex]) : Math.min(0, arr[areaIndex]);
+        ctx.lineTo(x(areaIndex), y(areaValue));
+      }
+      ctx.lineTo(x(count - 1), zeroY);
+      ctx.closePath();
+      ctx.fillStyle = side === 0 ? "rgba(251,91,96,.14)" : "rgba(34,166,163,.14)";
+      ctx.fill();
+    }
+    ctx.lineWidth = 1.6;
+    for (var segment = 1; segment < count; segment++) {
+      ctx.strokeStyle = arr[segment] > 0 ? "#fb5b60" : "#22a6a3";
+      ctx.beginPath();
+      ctx.moveTo(x(segment - 1), y(arr[segment - 1]));
+      ctx.lineTo(x(segment), y(arr[segment]));
+      ctx.stroke();
+    }
+    if (isAccel) {
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = "#e66b72";
+      ctx.beginPath();
+      ctx.moveTo(left, y(-.04));
+      ctx.lineTo(left + w, y(-.04));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    var current = arr[count - 1];
+    var currentY = Math.max(top + 10, Math.min(top + h - 10, y(current)));
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = current > 0 ? "rgba(251,91,96,.45)" : "rgba(34,166,163,.45)";
+    ctx.beginPath();
+    ctx.moveTo(left, currentY);
+    ctx.lineTo(left + w, currentY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = current > 0 ? "#fb5b60" : "#22a6a3";
+    ctx.fillRect(width - 64, currentY - 10, 58, 20);
+    ctx.fillStyle = "#fff";
+    ctx.font = "700 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText((current * 100).toFixed(1) + "%", width - 35, currentY + 4);
+
+    var dates = ["4月", "7月", "9月", "2024年", "4月", "7月", "9月", "2025年", "4月", "7月", "9月", "2026年", "4月", "7月"];
+    ctx.fillStyle = "#667085";
+    ctx.font = "11px sans-serif";
+    dates.forEach(function (date, index) {
+      ctx.fillText(date, left + index / (dates.length - 1) * w, height - 6);
+    });
+  }
+
+  function render() {
+    fitCanvas(document.getElementById("maChart"), drawMA);
+    fitCanvas(document.getElementById("trendChart"), drawTrend);
+    fitCanvas(document.getElementById("slopeChart"), function (ctx, w, h) { drawOsc(ctx, w, h, "MA250 一阶导", "#e5484d"); });
+    fitCanvas(document.getElementById("accelChart"), function (ctx, w, h) { drawOsc(ctx, w, h, "MA250 二阶导", "#14b8a6"); });
+  }
+
+  render();
+  window.addEventListener("resize", render);
+})();
+</script>
+</body>
+</html>

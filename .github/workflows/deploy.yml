@@ -22,12 +22,23 @@ jobs:
           script: |
             echo "=== 拉取最新代码 ==="
             cd /var/www/大A监控
-            git pull origin master
+            mkdir -p /tmp/daa-monitor-data
+            if [ -f data/market.db ]; then
+              cp data/market.db /tmp/daa-monitor-data/market.db
+            fi
+            git update-index --skip-worktree data/market.db || true
+            git pull --autostash origin master
+            mkdir -p data
+            if [ -f /tmp/daa-monitor-data/market.db ]; then
+              cp /tmp/daa-monitor-data/market.db data/market.db
+            fi
+            git update-index --skip-worktree data/market.db || true
             echo "=== 安装依赖 ==="
             pip3 install requests -q
-            echo "=== 停止旧的后端服务 ==="
-            pkill -f "server.py" || true
-            echo "=== 启动后端服务 (端口8080) ==="
-            nohup python3 backend/server.py > /tmp/daa-server.log 2>&1 &
+            echo "=== 重启 systemd 服务 ==="
+            sudo systemctl restart daa-monitor
+            echo "=== 健康检查 ==="
+            curl -fsS http://localhost:8080/api/dashboard > /dev/null
+            sudo systemctl status daa-monitor --no-pager
             echo "=== 部署完成 ==="
-            echo "后端日志: tail -f /tmp/daa-server.log"
+            echo "服务地址: http://${{ secrets.SERVER_HOST }}:8080"

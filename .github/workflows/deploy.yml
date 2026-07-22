@@ -12,16 +12,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Archive code (直接删除不需要的目录再打包)
+      - name: Archive code (关键修改：输出到 /tmp 目录)
         run: |
-          # 1. 删除 .git 和 .github 目录，避免打包进去
+          # 1. 删除不需要的目录
           rm -rf .git .github
 
-          # 2. 直接打包当前目录，此时没有冲突文件，也不需要 exclude 参数
-          tar -czf daa-monitor.tar.gz .
+          # 2. 将压缩包生成到 /tmp 目录，避免在当前目录生成文件导致 tar 报错
+          tar -czf /tmp/daa-monitor.tar.gz .
 
           echo "✅ 打包完成，文件大小："
-          ls -lh daa-monitor.tar.gz
+          ls -lh /tmp/daa-monitor.tar.gz
 
       - name: Copy archive to server via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -29,7 +29,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "daa-monitor.tar.gz"
+          # 注意：source 路径也要改为 /tmp/
+          source: "/tmp/daa-monitor.tar.gz"
           target: "/tmp/"
 
       - name: Deploy and Restart via SSH

@@ -12,9 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Archive code (排除 .git 目录)
+      - name: Archive code (修正了 exclude 参数顺序)
         run: |
-          tar -czf daa-monitor.tar.gz . --exclude='.git' --exclude='daa-monitor.tar.gz' --exclude='.github'
+          # 注意：--exclude 必须放在目标目录 "." 之前！
+          tar --exclude='.git' --exclude='daa-monitor.tar.gz' --exclude='.github' -czf daa-monitor.tar.gz .
 
       - name: Copy archive to server via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -38,7 +39,6 @@ jobs:
             TIMESTAMP=$(date +%s)
             if [ -d "大A监控" ]; then
               mv 大A监控 "大A监控_backup_${TIMESTAMP}"
-              # 单独备份数据库以防万一
               if [ -f "大A监控_backup_${TIMESTAMP}/data/market.db" ]; then
                 cp "大A监控_backup_${TIMESTAMP}/data/market.db" /tmp/market.db.bak
               fi
